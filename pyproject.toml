@@ -1,0 +1,29 @@
+[project]
+name = "glados"
+version = "0.1.0"
+description = "Default template for PDM package"
+authors = [
+    {name = "Joseph Chillemi", email = "jchillemi87@gmail.com"},
+]
+dependencies = [
+    "langchain-ollama>=1.0.1", 
+    "qdrant-client>=1.16.2", 
+    "langchain-core>=1.2.0", 
+    "pydantic-settings>=2.12.0", 
+    "pydantic>=2.12.5", 
+    "langchain-qdrant>=1.1.0",
+    "langgraph>=0.1.0",
+    "langgraph-checkpoint-sqlite>=1.0.0"
+]
+requires-python = "==3.13.*"
+readme = "README.md"
+license = {text = "MIT"}
+
+[tool.pdm]
+distribution = false
+
+# --- THE FIX FOR IMPORTS ---
+# This tells PDM: "The code lives in the 'src' folder."
+# This allows 'from src.core.llm import get_llm' to work.
+[tool.pdm.build]
+includes = ["src"]

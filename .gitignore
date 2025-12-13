@@ -1,0 +1,24 @@
+# --- Secrets (NEVER COMMIT THESE) ---
+.env
+.env.local
+
+# --- Python & PDM ---
+__pycache__/
+*.py[cod]
+.venv/
+.pdm-python
+pdms.toml
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# --- Local Databases (Memory) ---
+*.sqlite
+*.sqlite3
+*.db
+agent_state.sqlite
+state_db.sqlite
+
+# --- IDE Settings ---
+.vscode/
+.idea/
