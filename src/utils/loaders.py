@@ -33,6 +33,7 @@ class CustomPaperlessLoader(BaseLoader):
                                 "source": f"paperless_id_{doc_data.get('id')}",
                                 "title": doc_data.get("title", "Untitled"),
                                 "created": doc_data.get("created", ""),
+                                "modified": doc_data.get("modified", ""),
                                 "correspondent": doc_data.get("correspondent", "Unknown"),
                                 "tags": doc_data.get("tags", [])
                             }

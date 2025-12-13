@@ -1,11 +1,16 @@
 # src/orchestrator/state.py
+
 import operator
-from typing import Annotated, TypedDict, List
+from typing import Annotated, TypedDict, List, Literal
 from langchain_core.messages import BaseMessage
 
 class GlobalState(TypedDict):
-    # The conversation history. 'operator.add' appends new messages rather than overwriting.
+    # HISTORY: Holds the entire conversation
     messages: Annotated[List[BaseMessage], operator.add]
     
-    # We will add 'next_step' and 'user_info' here later.
-    # For a sanity check, just messages are enough.
+    # ROUTING: The Supervisor writes to this (e.g., "research_agent")
+    next_step: str
+    
+    # CONTEXT: Tracks which agent sent the last message
+    # Useful for the UI to know if "Finance" or "Research" is speaking
+    sender: str

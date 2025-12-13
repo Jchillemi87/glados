@@ -28,3 +28,5 @@ def get_embeddings() -> OllamaEmbeddings:
         model=settings.EMBEDDING_MODEL,      # Loaded from .env (e.g., "nomic-embed-text")
         base_url=settings.OLLAMA_BASE_URL,
     )
+
+llm = get_llm(temperature=0.5)
