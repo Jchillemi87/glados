@@ -11,8 +11,8 @@ def search_knowledge_base(query: str) -> str:
     """
     try:
         # Connect to the 'personal_knowledge' collection
-        # vector_store = get_vector_store(collection_name="personal_knowledge")
-        vector_store = get_vector_store(collection_name="knowledge_base")
+        vector_store = get_vector_store(collection_name="personal_knowledge")
+        # vector_store = get_vector_store(collection_name="knowledge_base")
         
         # Search for top 5 chunks (Increased from 3 for better context)
         results = vector_store.similarity_search(query, k=5)

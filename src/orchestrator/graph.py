@@ -1,93 +1,124 @@
 import json
-from langchain_core.messages import SystemMessage, HumanMessage
+from langchain_core.messages import SystemMessage
 from langgraph.graph import StateGraph, END, START
 
-# INFRASTRUCTURE & STATE
 from src.core.llm import get_llm
 from src.core.persistence import get_checkpointer
 from src.orchestrator.state import GlobalState
+from src.utils.parsing import parse_json_markdown
 
-# CAPABILITIES (The Sub-Agents)
-# We import the pre-built graph we created in src/capabilities/research/agent.py
+# IMPORT AGENTS
 from src.capabilities.research.agent import research_agent
+from src.capabilities.home_control.agent import home_agent
 
-# region PROMPTS
-SUPERVISOR_SYSTEM_PROMPT = """You are the Supervisor.
-Your job is to route the user's request to the correct worker.
+# --- DYNAMIC REGISTRY ---
+WORKER_REGISTRY = {
+    "home_agent": {
+        "description": "Controls physical smart devices (lights, switches, locks, thermostat).",
+        "triggers": ["turn on", "turn off", "lights", "garage", "temperature", "switch", "status"]
+    },
+    "research_agent": {
+        "description": "Searches documents, manuals, receipts, and saved knowledge.",
+        "triggers": ["how do i", "warranty", "manual", "receipt", "who makes", "specs", "tire pressure", "motherboard"]
+    },
+    "general_chat": {
+        "description": "Handles greetings, identity questions, and casual conversation.",
+        "triggers": ["hello", "hi", "who are you", "joke"]
+    }
+}
 
-1. "research_agent": Use this for questions about:
-   - Specific documents (receipts, manuals, warranties).
-   - Saved personal knowledge (X570 motherboard, electric bill).
-   - Any query requiring a database lookup.
+# --- GUARDRAILS: TOOL MAPPING ---
+# If the Supervisor hallucinates a tool call, we map it to the correct agent.
+TOOL_TO_AGENT = {
+    "list_available_devices": "home_agent",
+    "control_device": "home_agent",
+    "get_device_state": "home_agent",
+    "search_knowledge_base": "research_agent"
+}
 
-2. "general_chat": Use this for:
-   - Greetings ("Hello", "Hi").
-   - General questions ("What is the capital of France?").
-   - Questions about your identity.
+def build_supervisor_prompt():
+    worker_descriptions = []
+    for name, info in WORKER_REGISTRY.items():
+        worker_descriptions.append(f"- \"{name}\": {info['description']}")
+    
+    formatted_workers = "\n".join(worker_descriptions)
+    
+    return f"""You are the SUPERVISOR ROUTER.
+Your ONLY job is to route the user request to the correct worker.
+You CANNOT answer questions directly. You CANNOT execute tools.
 
-Output strictly valid JSON: {"next_step": "WORKER_NAME"}
+### WORKERS
+{formatted_workers}
+
+### OUTPUT FORMAT
+Return strictly valid JSON:
+{{"next_step": "WORKER_NAME"}}
 """
 
-# region NODES
-
 def supervisor_node(state: GlobalState):
-    """
-    The Router. It does not answer the user; it only decides WHO should answer.
-    """
-    # We use json_mode=True to enforce strict routing logic
+    system_prompt = build_supervisor_prompt()
     llm = get_llm(temperature=0, json_mode=True)
     
-    messages = [SystemMessage(content=SUPERVISOR_SYSTEM_PROMPT)] + state['messages']
+    messages = [SystemMessage(content=system_prompt)] + state['messages']
     response = llm.invoke(messages)
     
+    print(f"\n[SUPERVISOR THOUGHT]: {response.content}")
+
     try:
-        decision = json.loads(response.content)
-        next_step = decision.get("next_step", "general_chat")
-    except Exception:
-        # Fallback to chat if JSON fails
+        decision = parse_json_markdown(response.content)
+        
+        # 1. Check for valid 'next_step'
+        next_step = decision.get("next_step")
+
+        # 2. HALLUCINATION CHECK (The Fix)
+        # If the model tried to call a tool (e.g., has 'name' but no 'next_step')
+        if not next_step and "name" in decision:
+            tool_name = decision["name"]
+            print(f"[SUPERVISOR WARNING]: Model tried to call tool '{tool_name}'.")
+            
+            # Smart Redirect
+            if tool_name in TOOL_TO_AGENT:
+                next_step = TOOL_TO_AGENT[tool_name]
+                print(f"[SUPERVISOR RECOVERY]: Redirecting to owner -> {next_step}")
+            else:
+                next_step = "general_chat"
+
+        # 3. Validation
+        if next_step not in WORKER_REGISTRY:
+            # Fallback for weird output
+            next_step = "general_chat"
+
+    except Exception as e:
+        print(f"[SUPERVISOR ERROR]: JSON parsing failed ({e}). Defaulting to Chat.")
         next_step = "general_chat"
 
-    # We return ONLY the routing decision, we do not append this JSON to the conversation history
-    # to keep the chat log clean for the user.
+    print(f"[SUPERVISOR ROUTE]: -> {next_step}")
     return {"next_step": next_step}
 
-
 def general_chat_node(state: GlobalState):
-    """
-    The Generalist. Handles small talk so we don't waste expensive tool calls.
-    """
+    print("[NODE]: General Chat")
     llm = get_llm(temperature=0.7)
     response = llm.invoke(state["messages"])
     return {"messages": [response]}
 
-
-# region THE GRAPH
-
+# --- GRAPH ---
 workflow = StateGraph(GlobalState)
 
-# Add Nodes
 workflow.add_node("supervisor", supervisor_node)
 workflow.add_node("general_chat", general_chat_node)
-workflow.add_node("research_agent", research_agent) # Importing the sub-graph directly!
+workflow.add_node("research_agent", research_agent)
+workflow.add_node("home_agent", home_agent)
 
-# Define Entry Point
 workflow.add_edge(START, "supervisor")
 
-# Define Routing Logic
 workflow.add_conditional_edges(
     "supervisor",
     lambda state: state["next_step"],
-    {
-        "research_agent": "research_agent",
-        "general_chat": "general_chat"
-    }
+    {key: key for key in WORKER_REGISTRY.keys()}
 )
 
-# Define Exit Points
-# After a worker finishes, we END the turn.
-# (In the future, we can route back to Supervisor for multi-step reasoning)
-workflow.add_edge("general_chat", END)
-workflow.add_edge("research_agent", END)
+for worker in WORKER_REGISTRY.keys():
+    if worker != "supervisor":
+        workflow.add_edge(worker, END)
 
-# 5. Compile
 graph = workflow.compile(checkpointer=get_checkpointer())

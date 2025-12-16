@@ -17,7 +17,13 @@ pdms.toml
 *.sqlite3
 *.db
 agent_state.sqlite
+agent_state.sqlite-shm
+agent_state.sqlite-wal
 state_db.sqlite
+amazon_browser_context
+amazon_browser_profile
+amazon_orders.json
+amazon_orders.csv
 
 # --- IDE Settings ---
 .vscode/

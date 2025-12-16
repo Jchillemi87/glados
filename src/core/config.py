@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     # NETWORK & PORTS
     # defaults are set but are overridden by .env
     UNRAID_IP: str = "10.0.0.201"
+    HOME_ASSISTANT_IP: str = "10.0.0.35"
     
     PORT_OLLAMA: int = 11434
     PORT_QDRANT: int = 6333
@@ -41,7 +42,7 @@ class Settings(BaseSettings):
     
     @computed_field
     def HOME_ASSISTANT_URL(self) -> str:
-        return f"http://{self.UNRAID_IP}:{self.PORT_HOME_ASSISTANT}"
+        return f"http://{self.HOME_ASSISTANT_IP}:{self.PORT_HOME_ASSISTANT}"
 
     # CONFIGURATION
     # Tells Pydantic to read from the .env file in the root directory

@@ -17,8 +17,8 @@ def run_manual_search(query: str):
     try:
         # Connect
         # We reuse the exact same factory function the Agent uses
-        #vector_store = get_vector_store(collection_name="personal_knowledge")
-        vector_store = get_vector_store(collection_name="knowledge_base")
+        vector_store = get_vector_store(collection_name="personal_knowledge")
+        # vector_store = get_vector_store(collection_name="knowledge_base")
         
         # Search
         # k=3 means "Get the top 3 matches"
