@@ -10,7 +10,10 @@ from src.utils.parsing import parse_json_markdown
 # IMPORT AGENTS
 from src.capabilities.research.agent import research_agent
 from src.capabilities.home_control.agent import home_agent
-from src.capabilities.system_admin.agent import system_admin_agent  # <--- NEW IMPORT
+from src.capabilities.system_admin.agent import system_admin_agent
+from src.capabilities.finance.agent import finance_agent
+
+
 
 # --- DYNAMIC REGISTRY ---
 WORKER_REGISTRY = {
@@ -22,9 +25,13 @@ WORKER_REGISTRY = {
         "description": "Searches documents, manuals, receipts, and saved knowledge.",
         "triggers": ["how do i", "warranty", "manual", "receipt", "who makes", "specs", "tire pressure", "motherboard"]
     },
-    "system_admin": {  # <--- NEW ENTRY
+    "system_admin": {
         "description": "Manages server infrastructure, checks installed AI models, and monitors system status.",
         "triggers": ["list models", "what models", "ollama", "server status", "unraid"]
+    },
+    "finance_agent": {
+        "description": "Analyzes spending history, amazon orders, and financial totals.",
+        "triggers": ["how much did i spend", "price of", "amazon history", "bought", "cost"]
     },
     "general_chat": {
         "description": "Handles greetings, identity questions, and casual conversation.",
@@ -38,7 +45,8 @@ TOOL_TO_AGENT = {
     "control_device": "home_agent",
     "get_device_state": "home_agent",
     "search_knowledge_base": "research_agent",
-    "list_ollama_models": "system_admin"  # <--- NEW MAPPING
+    "list_ollama_models": "system_admin",
+    "query_amazon_orders": "finance_agent"
 }
 
 def build_supervisor_prompt():
@@ -106,7 +114,8 @@ workflow.add_node("supervisor", supervisor_node)
 workflow.add_node("general_chat", general_chat_node)
 workflow.add_node("research_agent", research_agent)
 workflow.add_node("home_agent", home_agent)
-workflow.add_node("system_admin", system_admin_agent)  # <--- NEW NODE
+workflow.add_node("system_admin", system_admin_agent)
+workflow.add_node("finance_agent", finance_agent)
 
 workflow.add_edge(START, "supervisor")
 

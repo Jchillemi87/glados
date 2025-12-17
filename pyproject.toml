@@ -13,8 +13,8 @@ dependencies = [
     "langgraph>=0.2.0",          # v1 stability release
     "pydantic-settings>=2.0.0",
     "qdrant-client",
-    "sqlalchemy",
-    "pandas",
+    "sqlalchemy>=2.0.45",
+    "pandas>=2.3.3",
     "playwright",
     "beautifulsoup4"
 ]
