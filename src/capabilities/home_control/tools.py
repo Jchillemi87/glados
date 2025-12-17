@@ -1,11 +1,11 @@
-# src/capabilities/home_control/tools.py
 from langchain_core.tools import tool
 from src.core.iot import ha_client
 
 @tool
 def list_available_devices(domain_filter: str = "light") -> str:
     """
-    Lists devices in the house.
+    Lists devices in the house. 
+    ALWAYS CALL THIS FIRST.
     """
     states = ha_client.get_all_states()
     
@@ -18,11 +18,11 @@ def list_available_devices(domain_filter: str = "light") -> str:
     found_devices = []
     for s in states:
         entity_id = s.get("entity_id", "")
-        # Looser filter to catch switches that act as lights
-        if domain_filter in entity_id or s.get("attributes", {}).get("friendly_name", "").lower().find(domain_filter) != -1:
+        # Broaden search to include generic 'homeassistant' or matched names
+        if domain_filter in entity_id or domain_filter in s.get("attributes", {}).get("friendly_name", "").lower():
             friendly_name = s.get("attributes", {}).get("friendly_name", "Unknown")
             state = s.get("state", "unknown")
-            found_devices.append(f"- {friendly_name} (ID: {entity_id}) is {state}")
+            found_devices.append(f"- {friendly_name} (ID: {entity_id}) | State: {state}")
     
     if not found_devices:
         return f"No devices found matching '{domain_filter}'."
@@ -48,17 +48,20 @@ def control_device(service: str, entity_id: str) -> str:
     - entity_id: The exact ID found via list_available_devices.
     """
     # 1. Force Generic Domain
-    # This prevents "Service light.turn_on not found for switch.hallway" errors
     domain = "homeassistant"
     
     # 2. Execute
     result = ha_client.call_service(domain, service, {"entity_id": entity_id})
     
     if "error" in result:
-        return f"FAILURE: Could not call {domain}.{service} on {entity_id}. Error: {result['error']}"
+        return f"FAILURE: API Error: {result['error']}"
     
     # 3. Verify
     final_state = ha_client.get_state(entity_id)
     state_val = final_state.get("state", "unknown")
     
-    return f"SUCCESS: Called '{domain}.{service}' on entity '{entity_id}'. New State: {state_val}."
+    # 4. Strict Feedback
+    if state_val == "unavailable":
+        return f"FAILURE: Device '{entity_id}' is UNAVAILABLE. Check power/connection."
+    
+    return f"SUCCESS: Called {service} on {entity_id}. New State: {state_val}."

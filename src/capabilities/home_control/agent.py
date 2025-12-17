@@ -1,27 +1,46 @@
-# src/capabilities/home_control/agent.py
+from langchain.agents import create_agent
 from langchain_core.messages import SystemMessage
-from langgraph.prebuilt import create_react_agent
 from src.core.llm import get_llm
+from src.core.middleware import ToolEnforcementMiddleware
 from src.capabilities.home_control.tools import (
     list_available_devices, 
     control_device, 
     get_device_state
 )
 
-SYSTEM_PROMPT = """You are the Home Assistant Butler.
-Your goal is to control smart devices.
+# ROBOTIC PROMPT
+# We remove "Butler" persona to reduce "Chatty" tendency.
+SYSTEM_PROMPT = """You are a Home Automation API Wrapper.
+Your ONLY function is to translate user intent into Tool Calls.
 
-### RULES
-1. **Discovery First**: User input is vague. Use `list_available_devices` to find the `entity_id` (e.g. 'light.hallway_switch' or 'switch.hallway').
-2. **Execute**: Once you have the ID, call `control_device`.
-3. **Verify**: Report the tool's output to the user.
+### INCORRECT BEHAVIOR
+User: "Turn on the kitchen light."
+You: "I have turned on the kitchen light."  <-- WRONG! No tool was called.
+
+### CORRECT BEHAVIOR
+User: "Turn on the kitchen light."
+You: (Call Tool: list_available_devices)
+...
+You: (Call Tool: control_device)
+...
+You: "SUCCESS: Light is on."
+
+### PROTOCOL
+1. ALWAYS call `list_available_devices` first.
+2. NEVER guess an ID.
+3. NEVER output text describing an action unless the tool has already returned "SUCCESS".
 """
 
-model = get_llm(temperature=0)
+# Increase temperature slightly to allow it to "think" about the example, 
+# but keep it low for precision.
+model = get_llm(temperature=0.1)
+
 tools = [list_available_devices, control_device, get_device_state]
 
-home_agent = create_react_agent(
-    model, 
-    tools, 
-    prompt=SystemMessage(content=SYSTEM_PROMPT)
+# We attach the middleware to catch any slips
+home_agent = create_agent(
+    model=model,
+    tools=tools,
+    system_prompt=SystemMessage(content=SYSTEM_PROMPT),
+    middleware=[ToolEnforcementMiddleware(strict_mode=True)]
 )

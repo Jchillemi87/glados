@@ -10,6 +10,7 @@ from src.utils.parsing import parse_json_markdown
 # IMPORT AGENTS
 from src.capabilities.research.agent import research_agent
 from src.capabilities.home_control.agent import home_agent
+from src.capabilities.system_admin.agent import system_admin_agent  # <--- NEW IMPORT
 
 # --- DYNAMIC REGISTRY ---
 WORKER_REGISTRY = {
@@ -21,6 +22,10 @@ WORKER_REGISTRY = {
         "description": "Searches documents, manuals, receipts, and saved knowledge.",
         "triggers": ["how do i", "warranty", "manual", "receipt", "who makes", "specs", "tire pressure", "motherboard"]
     },
+    "system_admin": {  # <--- NEW ENTRY
+        "description": "Manages server infrastructure, checks installed AI models, and monitors system status.",
+        "triggers": ["list models", "what models", "ollama", "server status", "unraid"]
+    },
     "general_chat": {
         "description": "Handles greetings, identity questions, and casual conversation.",
         "triggers": ["hello", "hi", "who are you", "joke"]
@@ -28,12 +33,12 @@ WORKER_REGISTRY = {
 }
 
 # --- GUARDRAILS: TOOL MAPPING ---
-# If the Supervisor hallucinates a tool call, we map it to the correct agent.
 TOOL_TO_AGENT = {
     "list_available_devices": "home_agent",
     "control_device": "home_agent",
     "get_device_state": "home_agent",
-    "search_knowledge_base": "research_agent"
+    "search_knowledge_base": "research_agent",
+    "list_ollama_models": "system_admin"  # <--- NEW MAPPING
 }
 
 def build_supervisor_prompt():
@@ -66,26 +71,19 @@ def supervisor_node(state: GlobalState):
 
     try:
         decision = parse_json_markdown(response.content)
-        
-        # 1. Check for valid 'next_step'
         next_step = decision.get("next_step")
 
-        # 2. HALLUCINATION CHECK (The Fix)
-        # If the model tried to call a tool (e.g., has 'name' but no 'next_step')
         if not next_step and "name" in decision:
             tool_name = decision["name"]
             print(f"[SUPERVISOR WARNING]: Model tried to call tool '{tool_name}'.")
             
-            # Smart Redirect
             if tool_name in TOOL_TO_AGENT:
                 next_step = TOOL_TO_AGENT[tool_name]
                 print(f"[SUPERVISOR RECOVERY]: Redirecting to owner -> {next_step}")
             else:
                 next_step = "general_chat"
 
-        # 3. Validation
         if next_step not in WORKER_REGISTRY:
-            # Fallback for weird output
             next_step = "general_chat"
 
     except Exception as e:
@@ -108,6 +106,7 @@ workflow.add_node("supervisor", supervisor_node)
 workflow.add_node("general_chat", general_chat_node)
 workflow.add_node("research_agent", research_agent)
 workflow.add_node("home_agent", home_agent)
+workflow.add_node("system_admin", system_admin_agent)  # <--- NEW NODE
 
 workflow.add_edge(START, "supervisor")
 
