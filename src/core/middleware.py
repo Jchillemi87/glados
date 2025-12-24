@@ -1,35 +1,49 @@
 from typing import Any
+from datetime import datetime
 from langchain.agents.middleware import AgentMiddleware
 from langchain_core.messages import SystemMessage, AIMessage
-
-# Guardrail: Forces the model to acknowledge its limitations
-GUARDRAIL_MSG = SystemMessage(content="""
-[SYSTEM OVERRIDE]
-1. You are a REMOTE INTERFACE. You have NO physical body.
-2. To "turn on", "check", or "list" anything, you MUST output a Tool Call.
-3. If you output text claiming you did something WITHOUT a tool call, it is a CRITICAL ERROR.
-4. DO NOT explain what you are going to do. JUST CALL THE TOOL.
-""")
 
 class ToolEnforcementMiddleware(AgentMiddleware):
     def __init__(self, strict_mode: bool = True):
         self.strict_mode = strict_mode
 
+    def _get_context_message(self) -> SystemMessage:
+        """
+        Generates the dynamic context and guardrails.
+        This ensures the Agent always knows the EXACT real-time.
+        """
+        now = datetime.now()
+        timestamp_str = now.strftime("%A, %B %d, %Y at %I:%M %p") # Tuesday, December 23, 2025 at 08:30 PM
+        
+        content = f"""
+[SYSTEM CONTEXT]
+Current System Time: {timestamp_str}
+
+[OPERATIONAL GUARDRAILS]
+1. You are a REMOTE INTERFACE. You have NO physical body.
+2. To "turn on", "check", or "list" anything, you MUST output a Tool Call.
+3. If you output text claiming you did something WITHOUT a tool call, it is a CRITICAL ERROR.
+4. DO NOT explain what you are going to do. JUST CALL THE TOOL.
+"""
+        return SystemMessage(content=content)
+
     def before_model(self, request: Any) -> Any:
         """Injects guardrails into the context window."""
         if not self.strict_mode:
             return request
+        
+        context_msg = self._get_context_message()
 
         # Handle Dict-based state (LangGraph v1 standard)
         if isinstance(request, dict):
             messages = request.get('messages', [])
             # Inject Guardrail at the very end of history
-            request['messages'] = list(messages) + [GUARDRAIL_MSG]
+            request['messages'] = list(messages) + [context_msg]
             return request
 
         # Handle Object-based state
         if hasattr(request, "messages"):
-            new_msgs = list(request.messages) + [GUARDRAIL_MSG]
+            new_msgs = list(request.messages) + [context_msg]
             return request.override(messages=new_msgs)
 
         return request

@@ -32,19 +32,19 @@ def run_interactive_mode():
                 if "messages" in event:
                     last_msg = event["messages"][-1]
                     
-                    # 1. Print AI Speech
+                    # Print AI Speech
                     if last_msg.type == "ai":
                         if last_msg.content:
                             print(f"Agent: {last_msg.content}")
                         
-                        # 2. Print Tool Calls (The missing piece!)
+                        # Print Tool Calls
                         if hasattr(last_msg, "tool_calls") and last_msg.tool_calls:
                             for tool_call in last_msg.tool_calls:
                                 name = tool_call['name']
                                 args = tool_call['args']
                                 print(f"   >>> [TOOL CALL]: {name}({args})")
 
-                    # 3. Print Tool Outputs (Optional, good for deep debug)
+                    # Print Tool Outputs (good for deep debug)
                     elif last_msg.type == "tool":
                          print(f"   >>> [TOOL RESULT]: {last_msg.content[:100]}...") 
 

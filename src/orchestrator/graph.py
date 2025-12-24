@@ -12,6 +12,7 @@ from src.capabilities.research.agent import research_agent
 from src.capabilities.home_control.agent import home_agent
 from src.capabilities.system_admin.agent import system_admin_agent
 from src.capabilities.finance.agent import finance_agent
+from src.capabilities.scheduler.agent import scheduler_agent
 
 
 
@@ -33,6 +34,10 @@ WORKER_REGISTRY = {
         "description": "Analyzes spending history, amazon orders, and financial totals.",
         "triggers": ["how much did i spend", "price of", "amazon history", "bought", "cost"]
     },
+    "scheduler_agent": {
+        "description": "Handles the Morning Briefing, Calendar Events, Weather, and Maintenance Logs (Oil changes, Filters).",
+        "triggers": ["morning briefing", "what is on my schedule", "calendar", "weather", "maintenance", "oil change", "filter"]
+    },
     "general_chat": {
         "description": "Handles greetings, identity questions, and casual conversation.",
         "triggers": ["hello", "hi", "who are you", "joke"]
@@ -41,12 +46,25 @@ WORKER_REGISTRY = {
 
 # --- GUARDRAILS: TOOL MAPPING ---
 TOOL_TO_AGENT = {
+    # Home Control
     "list_available_devices": "home_agent",
     "control_device": "home_agent",
     "get_device_state": "home_agent",
+
+    # Research
     "search_knowledge_base": "research_agent",
+
+    # System Admin
     "list_ollama_models": "system_admin",
-    "query_amazon_orders": "finance_agent"
+
+    # Finance
+    "query_amazon_orders": "finance_agent",
+
+    # Scheduler
+    "get_calendar_events": "scheduler_agent",
+    "get_weather_report": "scheduler_agent",
+    "log_maintenance": "scheduler_agent",
+    "check_maintenance_status": "scheduler_agent"
 }
 
 def build_supervisor_prompt():
@@ -116,6 +134,7 @@ workflow.add_node("research_agent", research_agent)
 workflow.add_node("home_agent", home_agent)
 workflow.add_node("system_admin", system_admin_agent)
 workflow.add_node("finance_agent", finance_agent)
+workflow.add_node("scheduler_agent", scheduler_agent)
 
 workflow.add_edge(START, "supervisor")
 
