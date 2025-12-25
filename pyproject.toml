@@ -18,7 +18,8 @@ dependencies = [
     "playwright",
     "beautifulsoup4",
     "chainlit>=2.9.3",
-    "aiosqlite>=0.22.1"
+    "aiosqlite>=0.22.1",
+    "wyoming>=1.8.0"
 ]
 requires-python = "==3.13.*"
 readme = "README.md"

@@ -5,7 +5,7 @@
 groups = ["default"]
 strategy = ["inherit_metadata"]
 lock_version = "4.5.0"
-content_hash = "sha256:6c50061ba3e3119453c07ddbc7be35bb7f9fd013f50ab4bd59b7c98fc9b3079b"
+content_hash = "sha256:c36b45f6241763b258e1d38b4b421ae696e5b9879d64112f8ebdec6a3b553594"
 
 [[metadata.targets]]
 requires_python = "==3.13.*"
@@ -3043,6 +3043,17 @@ dependencies = [
 files = [
     {file = "wsproto-1.3.2-py3-none-any.whl", hash = "sha256:61eea322cdf56e8cc904bd3ad7573359a242ba65688716b0710a5eb12beab584"},
     {file = "wsproto-1.3.2.tar.gz", hash = "sha256:b86885dcf294e15204919950f666e06ffc6c7c114ca900b060d6e16293528294"},
+]
+
+[[package]]
+name = "wyoming"
+version = "1.8.0"
+requires_python = ">=3.8"
+summary = "Peer-to-peer protocol for voice assistants"
+groups = ["default"]
+files = [
+    {file = "wyoming-1.8.0-py3-none-any.whl", hash = "sha256:1bbd9fb2af1fcc7dc8d397821438ff89173d2aed33f1092c62aae0b3ce6d168d"},
+    {file = "wyoming-1.8.0.tar.gz", hash = "sha256:90c16c9fb7e90cbce277032806b7816e6c631812393206a73298f4ad4ffcdb76"},
 ]
 
 [[package]]

@@ -28,3 +28,6 @@ amazon_orders.csv
 # --- IDE Settings ---
 .vscode/
 .idea/
+
+# --- Other ---
+.files/

@@ -9,6 +9,7 @@ if os.getcwd() not in sys.path:
 
 import chainlit as cl
 from langchain_core.messages import HumanMessage
+from src.core.voice import generate_speech
 
 # Lazy load graph to allow Chainlit UI to render even if backend is slow
 GRAPH = None
@@ -73,3 +74,54 @@ async def main(message: cl.Message):
                 await msg.stream_token(chunk.content)
                 
     await msg.send()
+
+@cl.on_message
+async def main(message: cl.Message):
+    """
+    Main loop: User Input -> Graph -> Text Stream -> Voice Generation.
+    """
+    graph = get_graph()
+    thread_id = cl.user_session.get("thread_id")
+    config = {"configurable": {"thread_id": thread_id}}
+    
+    inputs = {"messages": [HumanMessage(content=message.content)]}
+    
+    # Create the Message Placeholder
+    msg = cl.Message(content="", author="GLaDOS")
+    
+    # Stream the Text Response
+    full_text = ""
+    
+    async for event in graph.astream_events(inputs, config=config, version="v1"):
+        kind = event["event"]
+        
+        if kind == "on_chat_model_stream":
+            chunk = event["data"]["chunk"]
+            if chunk.content:
+                text_chunk = chunk.content
+                await msg.stream_token(text_chunk)
+                full_text += text_chunk
+                
+    # Finalize Text
+    await msg.send()
+    
+    # Generate & Send Audio
+    if full_text:
+        # Sanitize code blocks
+        import re
+        clean_text = re.sub(r'```.*?```', '', full_text, flags=re.DOTALL).strip()
+        
+        if clean_text:
+            # generate_speech is now native async, so we await it directly
+            # (No need for cl.make_async unless generate_speech was blocking)
+            audio_bytes = await generate_speech(clean_text)
+            
+            if audio_bytes:
+                element = cl.Audio(
+                    name="voice.wav", 
+                    content=audio_bytes, 
+                    display="inline",
+                    auto_play=True
+                )
+                msg.elements = [element]
+                await msg.update()

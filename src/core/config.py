@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     PORT_QDRANT: int = 6333
     PORT_PAPERLESS: int = 8000
     PORT_HOME_ASSISTANT: int = 8123
+    PORT_PIPER: int = 10200
 
     # AUTHENTICATION
     PAPERLESS_API_TOKEN: str = "disabled" # Default to avoid crash if missing during dev
@@ -25,6 +26,10 @@ class Settings(BaseSettings):
     
     # PERSISTENCE
     STATE_DB_PATH: str = "agent_state.sqlite"
+
+    # VOICE SETTINGS
+    # Common GLaDOS file names: "glados", "en_US-glados-medium"
+    PIPER_VOICE_ID: str = "glados"
 
     # COMPUTED URLS - automatically generated based on the IP/Port above.
     
@@ -43,6 +48,10 @@ class Settings(BaseSettings):
     @computed_field
     def HOME_ASSISTANT_URL(self) -> str:
         return f"http://{self.HOME_ASSISTANT_IP}:{self.PORT_HOME_ASSISTANT}"
+
+    @computed_field
+    def PIPER_URL(self) -> str:
+        return f"http://{self.UNRAID_IP}:{self.PORT_PIPER}"
 
     # CONFIGURATION
     # Tells Pydantic to read from the .env file in the root directory
