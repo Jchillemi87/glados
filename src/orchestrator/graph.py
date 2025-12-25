@@ -49,7 +49,6 @@ TOOL_TO_AGENT = {
     # Home Control
     "list_available_devices": "home_agent",
     "control_device": "home_agent",
-    "get_device_state": "home_agent",
 
     # Research
     "search_knowledge_base": "research_agent",

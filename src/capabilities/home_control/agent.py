@@ -1,43 +1,41 @@
+# src/capabilities/home_control/agent.py
 from langchain.agents import create_agent
 from langchain_core.messages import SystemMessage
 from src.core.llm import get_llm
 from src.core.middleware import ToolEnforcementMiddleware
 from src.capabilities.home_control.tools import (
     list_available_devices, 
-    control_device, 
-    get_device_state
+    control_device
 )
 
-# ROBOTIC PROMPT
-# We remove "Butler" persona to reduce "Chatty" tendency.
-SYSTEM_PROMPT = """You are a Home Automation API Wrapper.
-Your ONLY function is to translate user intent into Tool Calls.
+# STRICT PROCEDURAL PROMPT
+SYSTEM_PROMPT = """You are the Home Assistant Butler.
 
-### INCORRECT BEHAVIOR
-User: "Turn on the kitchen light."
-You: "I have turned on the kitchen light."  <-- WRONG! No tool was called.
+### PRIME DIRECTIVE: NO BLIND ACTIONS
+You are BLIND. You CANNOT see device IDs.
+You MUST follow this 2-Step Protocol for EVERY request:
 
-### CORRECT BEHAVIOR
-User: "Turn on the kitchen light."
-You: (Call Tool: list_available_devices)
-...
-You: (Call Tool: control_device)
-...
-You: "SUCCESS: Light is on."
+**STEP 1: DISCOVERY**
+- Call `list_available_devices(domain_filter='keyword')`.
+- If the output contains the specific details you need, proceed.
+- If the output lists multiple devices, pick the correct ID.
 
-### PROTOCOL
-1. ALWAYS call `list_available_devices` first.
-2. NEVER guess an ID.
-3. NEVER output text describing an action unless the tool has already returned "SUCCESS".
+**STEP 2: ACTION**
+- Call `control_device`.
+- If dimming, use `brightness_pct` (0-100).
+
+### EXAMPLES
+User: "Dim kitchen to 50%"
+1. `list_available_devices(domain_filter='kitchen')`
+2. Found `light.kitchen_main`.
+3. `control_device(service='turn_on', entity_id='light.kitchen_main', brightness_pct=50)`
 """
 
-# Increase temperature slightly to allow it to "think" about the example, 
-# but keep it low for precision.
-model = get_llm(temperature=0.1)
+model = get_llm(temperature=0)
 
-tools = [list_available_devices, control_device, get_device_state]
+# We removed get_device_state to force usage of the Smart List
+tools = [list_available_devices, control_device]
 
-# We attach the middleware to catch any slips
 home_agent = create_agent(
     model=model,
     tools=tools,
