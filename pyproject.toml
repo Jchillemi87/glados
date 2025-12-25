@@ -16,7 +16,9 @@ dependencies = [
     "sqlalchemy>=2.0.45",
     "pandas>=2.3.3",
     "playwright",
-    "beautifulsoup4"
+    "beautifulsoup4",
+    "chainlit>=2.9.3",
+    "aiosqlite>=0.22.1"
 ]
 requires-python = "==3.13.*"
 readme = "README.md"

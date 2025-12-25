@@ -1,14 +1,16 @@
-# srccorepersistence.py
-import sqlite3
-from langgraph.checkpoint.sqlite import SqliteSaver
-from src.core.config import settings
+# src/core/persistence.py
+from langgraph.checkpoint.memory import MemorySaver
 
 def get_checkpointer():
+    """
+    Returns an In-Memory checkpointer.
     
-    # Creates a SQLite-backed checkpointer for conversation history.
+    PROS:
+    - Fast
+    - No database locks
+    - Works with Async (Chainlit) and Sync (CLI)
     
-    # check_same_thread=False is needed because FastAPILangGraph runs async
-    conn = sqlite3.connect(settings.STATE_DB_PATH, check_same_thread=False)
-    
-    # The 'memory' object manages readingwriting state to the DB
-    return SqliteSaver(conn)
+    CONS:
+    - History is lost when the script stops.
+    """
+    return MemorySaver()

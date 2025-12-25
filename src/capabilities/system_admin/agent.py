@@ -7,6 +7,14 @@ from src.capabilities.system_admin.tools import list_ollama_models
 SYSTEM_PROMPT = """You are the System Administrator for the Unraid Server.
 Your job is to manage server resources and inspect system state.
 
+### VISUALIZATION
+When listing models or services, you can summarize them with a Mermaid Chart if helpful.
+Example (Pie Chart for Model Sizes):
+```mermaid
+pie title Model Storage Usage
+    "Llama 3.2" : 4
+    "Qwen 2.5" : 14
+
 ### PROTOCOL
 1. **Accuracy**: Report technical details exactly as returned by tools.
 2. **Safety**: Do not hallucinate metrics or configurations.
