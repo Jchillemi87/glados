@@ -1,4 +1,4 @@
-# src/scripts/ingest_paperless.py
+# %% src/scripts/ingest_paperless.py
 
 import sys
 import os
@@ -56,7 +56,7 @@ def process_one_by_one(documents: List[Document], vector_store: QdrantVectorStor
     """
     Processes documents individually to provide granular feedback.
     """
-    # 1. Calculate total work (in estimated pages)
+    # Calculate total work (in estimated pages)
     total_est_pages = sum(estimate_pages(d.page_content) for d in documents)
     
     print(f"\n--- PROCESSING QUEUE ---")
@@ -64,7 +64,7 @@ def process_one_by_one(documents: List[Document], vector_store: QdrantVectorStor
     print(f"Total Est. Pages: {total_est_pages} (approx. {EST_CHARS_PER_PAGE} chars/page)")
     print("-" * 30)
 
-    # 2. Iterate with a progress bar weighted by PAGE COUNT
+    # Iterate with a progress bar weighted by PAGE COUNT
     with tqdm(total=total_est_pages, unit="pg", bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} pages [{elapsed}<{remaining}]") as pbar:
         
         for doc in documents:
@@ -79,12 +79,12 @@ def process_one_by_one(documents: List[Document], vector_store: QdrantVectorStor
             # Update description so user sees WHICH file is blocking
             pbar.set_description(f"Processing: {display_name}")
 
-            # --- A. SPLIT (The bottleneck) ---
+            # SPLIT (The bottleneck)
             # This is where the script hangs while calculating embeddings
             # We pass [doc] as a list containing a single document
             chunks = text_splitter.split_documents([doc])
 
-            # --- B. UPLOAD ---
+            # UPLOAD
             if chunks:
                 vector_store.add_documents(chunks)
             
@@ -98,7 +98,7 @@ def run_ingestion():
     client = get_qdrant_client()
     embeddings = get_embeddings()
 
-    # --- SAFETY CHECK ---
+    # SAFETY CHECK
     test_embedding = embeddings.embed_query("test")
     current_dim = len(test_embedding)
 
