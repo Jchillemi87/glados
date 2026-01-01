@@ -1,110 +1,104 @@
-# src/capabilities/home_control/tools.py
+# %% src/capabilities/home_control/tools.py
 import json
-from typing import Optional
+from typing import Optional, Any, Dict
 from langchain_core.tools import tool
 from src.core.iot import ha_client
 
 @tool
-def list_available_devices(domain_filter: str = "light") -> str:
+def get_active_domains() -> str:
     """
-    Lists devices. ALWAYS CALL THIS FIRST.
-    - If multiple devices match, returns a summary list.
-    - If EXACTLY ONE device matches, returns full details (attributes, brightness, etc).
+    Returns a list of active Home Assistant domains (e.g., ['light', 'switch', 'sensor']).
     """
-    states = ha_client.get_all_states()
-    
-    if isinstance(states, dict) and "error" in states:
-        return f"SYSTEM ERROR: Could not connect to Home Assistant. {states['error']}"
-    
-    if not states:
-        return "No devices found (Empty Response)."
-    
-    matches = []
-    for s in states:
-        entity_id = s.get("entity_id", "")
-        friendly_name = s.get("attributes", {}).get("friendly_name", "Unknown")
+    try:
+        states = ha_client.get_all_states()
+        if not states: return "[]"
         
-        # Filter Logic: Check ID, Name, or Domain
-        if (domain_filter.lower() in entity_id.lower() or 
-            domain_filter.lower() in friendly_name.lower()):
-            matches.append(s)
-            
-    if not matches:
-        return f"No devices found matching '{domain_filter}'."
+        domains = set()
+        for s in states:
+            state_val = s.get("state", "unknown")
+            if state_val.lower() in ["unavailable", "unknown"]:
+                continue
+                
+            entity_id = s.get("entity_id", "")
+            if "." in entity_id:
+                d = entity_id.split(".")[0]
+                if d not in ["automation", "script", "update", "zone", "person", "scene"]:
+                    domains.add(d)
+        
+        return json.dumps(list(sorted(domains)))
+    except Exception as e:
+        return json.dumps({"error": str(e)})
 
-    # --- SMART EXPANSION LOGIC ---
-    # Case A: Single Match -> Show Detail
-    if len(matches) == 1:
-        s = matches[0]
-        attrs = s.get("attributes", {})
+@tool
+def list_entities_in_domain(domain: str) -> str:
+    """
+    Lists all active entities within a specific domain.
+    """
+    try:
+        states = ha_client.get_all_states()
+        matches = []
         
-        # Format key attributes
-        details = []
-        if "brightness" in attrs:
-            pct = int((attrs['brightness'] / 255) * 100)
-            details.append(f"Brightness: {pct}%")
-        if "temperature" in attrs:
-            details.append(f"Temp: {attrs['temperature']}")
-        if "battery_level" in attrs:
-            details.append(f"Battery: {attrs['battery_level']}%")
+        for s in states:
+            entity_id = s.get("entity_id", "")
+            if not entity_id.startswith(f"{domain}."):
+                continue
+                
+            state_val = s.get("state", "unknown")
+            if state_val.lower() in ["unavailable", "unknown"]:
+                continue
             
-        detail_str = f" | {', '.join(details)}" if details else ""
-        return f"FOUND EXACT MATCH:\n- {attrs.get('friendly_name')} ({s['entity_id']}) is {s['state']}{detail_str}"
-
-    # Case B: Multiple Matches -> Show Summary
-    output = [f"Found {len(matches)} devices containing '{domain_filter}':"]
-    for s in matches[:50]: # Limit to 50 to protect context window
-        eid = s['entity_id']
-        name = s.get("attributes", {}).get("friendly_name", "Unknown")
-        state = s.get("state", "unknown")
-        output.append(f"- {name} ({eid}) is {state}")
-        
-    return "\n".join(output)
+            obj = {
+                "id": entity_id,
+                "name": s.get("attributes", {}).get("friendly_name", entity_id),
+                "state": state_val,
+                "attributes": s.get("attributes", {}) 
+            }
+            matches.append(obj)
+            
+        return json.dumps(matches, indent=2)
+    except Exception as e:
+        return json.dumps({"error": str(e)})
 
 @tool
 def control_device(
-    service: str, 
     entity_id: str, 
-    brightness_pct: Optional[int] = None
+    service: str, 
+    parameters: Optional[Dict[str, Any]] = None 
 ) -> str:
     """
-    Controls a device.
-    - service: 'turn_on', 'turn_off', 'toggle'
-    - entity_id: The exact ID found via list_available_devices.
-    - brightness_pct: Optional (0-100) for dimming lights.
+    Sends a command to a device.
+    - entity_id: e.g., 'light.hallway'
+    - service: e.g., 'turn_on', 'turn_off'
+    - parameters: Dictionary of arguments (e.g., {"brightness_pct": 50})
     """
-    # Determine Domain
-    # We prefer 'light.turn_on' if brightness is involved to ensure params are accepted.
-    # Otherwise 'homeassistant.turn_on' is safer for generic switches.
-    domain = "homeassistant"
-    if entity_id.startswith("light.") and brightness_pct is not None:
-        domain = "light"
-
-    # Build Payload
-    payload = {"entity_id": entity_id}
-    
-    if brightness_pct is not None:
-        if domain != "light":
-            return f"FAILURE: Cannot set brightness for non-light entity '{entity_id}'."
-        payload["brightness_pct"] = brightness_pct
-
-    # Execute
-    result = ha_client.call_service(domain, service, payload)
-    
-    if "error" in result:
-        return f"FAILURE: API Error: {result['error']}"
-    
-    # Verify
-    final_state = ha_client.get_state(entity_id)
-    state_val = final_state.get("state", "unknown")
-    
-    # Verification Message
-    msg = f"SUCCESS: {entity_id} is now {state_val}."
-    if brightness_pct:
-        # Verify specific brightness level
-        attrs = final_state.get("attributes", {})
-        actual = attrs.get("brightness", 0)
-        actual_pct = int((actual / 255) * 100)
-        msg += f" (Level: {actual_pct}%)"
+    try:
+        # Extract domain
+        if "." not in entity_id:
+            return json.dumps({"error": f"Invalid entity_id format: {entity_id}"})
+            
+        domain = entity_id.split(".")[0]
         
-    return msg
+        # Prepare Payload
+        service_data = {"entity_id": entity_id}
+        
+        # Safely merge dictionary parameters
+        if parameters and isinstance(parameters, dict):
+            service_data.update(parameters)
+
+        # Call Service
+        result = ha_client.call_service(domain, service, service_data)
+        
+        if "error" in result:
+             return json.dumps({"status": "error", "message": result['error']})
+
+        # Verification
+        final_state = ha_client.get_state(entity_id)
+        return json.dumps({
+            "status": "success", 
+            "executed": f"{domain}.{service}",
+            "params": service_data,
+            "current_state": final_state.get("state")
+        })
+
+    except Exception as e:
+        return json.dumps({"error": str(e)})

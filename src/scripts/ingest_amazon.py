@@ -10,12 +10,18 @@ from playwright.async_api import async_playwright
 import pandas as pd
 
 # --- PATH SETUP ---
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
+# 1. Identify where this script file is located
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# 2. Append project root to sys.path for imports (Keep this as is)
+sys.path.append(os.path.abspath(os.path.join(SCRIPT_DIR, "../..")))
 from src.core.config import settings
 
-USER_DATA_DIR = os.path.join(os.getcwd(), "amazon_browser_profile")
-OUTPUT_JSON = "amazon_orders.json"
-OUTPUT_CSV = "amazon_orders.csv"
+# 3. Define output paths relative to SCRIPT_DIR, not os.getcwd()
+USER_DATA_DIR = os.path.join(SCRIPT_DIR, "amazon_browser_profile")
+OUTPUT_JSON = os.path.join(SCRIPT_DIR, "amazon_orders.json")
+OUTPUT_CSV = os.path.join(SCRIPT_DIR, "amazon_orders.csv")
+
 MAX_CONCURRENCY = 4
 
 def clean_price(text):

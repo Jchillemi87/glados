@@ -4,12 +4,16 @@ import pandas as pd
 from sqlalchemy.orm import Session
 from datetime import datetime
 
-# Path Hack to find 'src'
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
+# 1. Identify where this script file is located
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# 2. Path Hack to find 'src' (adjusted to use SCRIPT_DIR)
+sys.path.append(os.path.abspath(os.path.join(SCRIPT_DIR, "../..")))
 
 from src.core.database import init_db, SessionLocal, AmazonOrder
 
-CSV_PATH = "amazon_orders.csv"
+# 3. Point to the CSV in the same directory as this script
+CSV_PATH = os.path.join(SCRIPT_DIR, "amazon_orders.csv")
 
 def clean_price(price_val):
     """Converts '$1,234.56' -> 1234.56"""

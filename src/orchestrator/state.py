@@ -1,5 +1,4 @@
 # src/orchestrator/state.py
-
 import operator
 from typing import Annotated, TypedDict, List, Literal
 from langchain_core.messages import BaseMessage
