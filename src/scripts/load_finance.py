@@ -2,7 +2,6 @@ import sys
 import os
 import pandas as pd
 from sqlalchemy.orm import Session
-from datetime import datetime
 
 # 1. Identify where this script file is located
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
