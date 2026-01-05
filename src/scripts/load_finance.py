@@ -1,21 +1,18 @@
+# src/scripts/load_finance.py
 import sys
 import os
 import pandas as pd
 from sqlalchemy.orm import Session
 
-# 1. Identify where this script file is located
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-
-# 2. Path Hack to find 'src' (adjusted to use SCRIPT_DIR)
 sys.path.append(os.path.abspath(os.path.join(SCRIPT_DIR, "../..")))
 
+# Ensure you are importing the updated AmazonOrder class with the new column!
 from src.core.database import init_db, SessionLocal, AmazonOrder
 
-# 3. Point to the CSV in the same directory as this script
 CSV_PATH = os.path.join(SCRIPT_DIR, "amazon_orders.csv")
 
 def clean_price(price_val):
-    """Converts '$1,234.56' -> 1234.56"""
     if pd.isna(price_val): return 0.0
     s = str(price_val).replace('$', '').replace(',', '').strip()
     try:
@@ -27,14 +24,12 @@ def load_csv_to_db():
     print(f"--- LOADING FINANCE DATA FROM {CSV_PATH} ---")
     
     if not os.path.exists(CSV_PATH):
-        print(f"[ERROR] {CSV_PATH} not found. Run ingest_amazon.py first.")
+        print(f"[ERROR] {CSV_PATH} not found.")
         return
 
-    # 1. Initialize DB
     init_db()
     db: Session = SessionLocal()
 
-    # 2. Read CSV
     try:
         df = pd.read_csv(CSV_PATH)
         print(f"Loaded CSV with {len(df)} rows.")
@@ -42,8 +37,7 @@ def load_csv_to_db():
         print(f"[ERROR] Could not read CSV: {e}")
         return
 
-    # 3. Clean Data & Deduplicate
-    # We fetch existing IDs to avoid duplicates if you run this script twice
+    # Cache existing entries to prevent duplicates
     existing_hashes = set()
     existing = db.query(AmazonOrder.order_id, AmazonOrder.item_description).all()
     for oid, desc in existing:
@@ -53,7 +47,6 @@ def load_csv_to_db():
     skipped_count = 0
 
     for _, row in df.iterrows():
-        # Schema Mapping
         order_id = str(row.get('Order ID', 'Unknown'))
         desc = str(row.get('Description', 'Unknown'))
         raw_date = row.get('Date', None)
@@ -63,18 +56,18 @@ def load_csv_to_db():
             skipped_count += 1
             continue
 
-        # Parse Date (Handle various formats or NaT)
         date_obj = None
         if pd.notna(raw_date) and str(raw_date) != "Unknown":
             try:
                 date_obj = pd.to_datetime(raw_date).date()
             except:
-                pass # Leave as None if parse fails
+                pass 
 
-        # Create Record
         db_item = AmazonOrder(
             order_id=order_id,
             date=date_obj,
+            # NEW: Map Account Column
+            account_owner=str(row.get('Account', 'Unknown')), 
             item_description=desc,
             item_price=clean_price(row.get('Price')),
             quantity=int(row.get('Quantity', 1)),
@@ -85,14 +78,12 @@ def load_csv_to_db():
         db.add(db_item)
         added_count += 1
 
-    # 4. Commit
     db.commit()
     db.close()
     
     print(f"--- SYNC COMPLETE ---")
     print(f"Added:   {added_count}")
-    print(f"Skipped: {skipped_count} (Duplicates)")
-    print(f"Total:   {len(df)}")
+    print(f"Skipped: {skipped_count}")
 
 if __name__ == "__main__":
     load_csv_to_db()

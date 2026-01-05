@@ -22,6 +22,9 @@ class AmazonOrder(Base):
 
     # Primary Key (Internal ID)
     id = Column(Integer, primary_key=True, index=True)
+
+    # New Field for Multi-Account Support
+    account_owner = Column(String, index=True)
     
     # Order Metadata
     order_id = Column(String, index=True)      # "113-1234567..."

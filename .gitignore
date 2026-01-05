@@ -21,7 +21,7 @@ agent_state.sqlite-shm
 agent_state.sqlite-wal
 state_db.sqlite
 amazon_browser_context
-amazon_browser_profile
+amazon_profile*
 amazon_orders.json
 amazon_orders.csv
 
